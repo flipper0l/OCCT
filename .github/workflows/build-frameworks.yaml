@@ -1,5 +1,5 @@
 
-name: Build XCFramework
+name: Build XCFrameworks
 
 on:
   workflow_dispatch:
