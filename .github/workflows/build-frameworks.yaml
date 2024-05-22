@@ -81,7 +81,7 @@ jobs:
 
       - name: Build XCFramework
         run: |
-          LIB_NAME="${debugName}occt-${ARTIFACT_NAME}.xcframework"
+          LIB_NAME="${prefix_ARTIFACT_NAME}occt-${ARTIFACT_NAME}.xcframework"
           LIB_PATH="${BUILD_DIR}/${LIB_NAME}"
 
           echo "LIB_PATH=${LIB_PATH}" >> "$GITHUB_ENV"
@@ -105,7 +105,7 @@ jobs:
         env:
           BUILD_DIR: ${{ env.BUILD_DIR}}
           ARTIFACT_NAME: ${{ env.REF }}
-          debugName: ${{ env.DEBUG_BUILD && 'ios-debug-' || 'ios-' }}
+          prefix_ARTIFACT_NAME: ${{ env.DEBUG_BUILD == '1' && 'ios-debug-' || 'ios-' }}
         
       - name: Save artifacts
         uses: actions/upload-artifact@v4
@@ -178,7 +178,7 @@ jobs:
 
       - name: Build XCFramework
         run: |
-          LIB_NAME="${debugName}occt-${ARTIFACT_NAME}.xcframework"
+          LIB_NAME="${prefix_ARTIFACT_NAME}occt-${ARTIFACT_NAME}.xcframework"
           LIB_PATH="${BUILD_DIR}/${LIB_NAME}"
 
           echo "LIB_PATH=${LIB_PATH}" >> "$GITHUB_ENV"
@@ -202,7 +202,7 @@ jobs:
         env:
           BUILD_DIR: ${{ env.BUILD_DIR}}
           ARTIFACT_NAME: ${{ env.REF }}
-          debugName: ${{ env.DEBUG_BUILD && 'macos-debug-' || 'macos-' }}
+          prefix_ARTIFACT_NAME: ${{ env.DEBUG_BUILD == '1' && 'macos-debug-' || 'macos-' }}
         
       - name: Save artifacts
         uses: actions/upload-artifact@v4
