@@ -117,4 +117,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.LIB_NAME }}
-          path: ${{ env.LIB_PATH }}.github/workflows/build-framework.yaml
+          path: ${{ env.LIB_PATH }}
