@@ -113,7 +113,7 @@ jobs:
           name: ${{ env.LIB_NAME }}
           path: ${{ env.LIB_PATH }}
 
-build-macos:
+  build-macos:
     name: Build
     runs-on: macos-latest
     # runs-on: ubuntu-latest
