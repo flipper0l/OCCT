@@ -1,0 +1,211 @@
+
+name: Build XCFramework
+
+on:
+  workflow_dispatch:
+    inputs:
+      occt-tag:
+        type: string
+        description: 'The branch, tag or SHA of the OCCT repo to checkout.'
+      debug-build:
+        type: boolean
+        default: false
+
+env:
+    REF: ${{ inputs.occt-tag || ''}}
+    DEBUG_BUILD: ${{ inputs.debug-build && '1' || '0' }}
+
+jobs:
+  build-ios:
+    name: Build
+    runs-on: macos-latest
+    # runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout OCCT sources
+        with:
+          repository: 'Open-Cascade-SAS/OCCT'
+          ref: ${{ env.REF }}
+          fetch-depth: 1
+      
+      - name: Create build Templates
+        working-directory: adm/scripts
+        run: |
+          BUILD_DIR=dist
+          echo "BUILD_DIR=${BUILD_DIR}" >> "$GITHUB_ENV"
+
+          echo 'export PATH=/Applications/CMake.app/Contents/bin:$PATH' | tee -a macos_custom.sh ios_custom.sh > /dev/null
+
+          echo "export aBuildRoot=${BUILD_DIR}" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export isStatic=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toCMake=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toClean=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toMake=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toInstall=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toPack=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toPackFat=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toDebug=${DEBUG_BUILD}" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+
+          # add build variable from repository var
+          echo "${BUILD_TEMPLATE}" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          
+          echo "export USE_FREETYPE=OFF" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export USE_FREEIMAGE=OFF" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export USE_RAPIDJSON=OFF" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export USE_DRACO=OFF" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          
+          # customization for macos
+          echo "export MACOSX_DEPLOYMENT_TARGET=12.00" >> macos_custom.sh
+          echo 'export anAbiList="arm64 x86_64"' >> macos_custom.sh
+
+          # customization for ios
+          echo "export IPHONEOS_DEPLOYMENT_TARGET=12.0" >> ios_custom.sh
+          echo 'export anAbiList="iPhoneOS|arm64 iPhoneSimulator|arm64"' >> ios_custom.sh
+
+          # clean file from \r
+          sed -i -e 's/\r$//' macos_custom.sh
+          sed -i -e 's/\r$//' ios_custom.sh
+
+          # print content 
+          cat macos_custom.sh
+          cat ios_custom.sh
+        env:
+          BUILD_TEMPLATE: ${{ vars.BUILD_TEMPLATE }}
+          DEBUG_BUILD: ${{ env.DEBUG_BUILD }}
+
+      - name: Make ios
+        working-directory: adm/scripts
+        run: |
+          bash ios_build.sh
+
+      - name: Build XCFramework
+        run: |
+          LIB_NAME="${debugName}occt-${ARTIFACT_NAME}.xcframework"
+          LIB_PATH="${BUILD_DIR}/${LIB_NAME}"
+
+          echo "LIB_PATH=${LIB_PATH}" >> "$GITHUB_ENV"
+          echo "LIB_NAME=${LIB_NAME}" >> "$GITHUB_ENV"
+          
+          # build xcframework
+          search_path=("macos-x86_64-clang" "macos-x86_64-debug-clang" "macos-arm64-clang" "macos-arm64-debug-clang" "iPhoneOS-arm64-clang" "iPhoneOS-arm64-debug-clang" "iPhoneSimulator-arm64-clang" "iPhoneSimulator-arm64-debug-clang")
+          for p in "${search_path[@]}"
+          do
+            archPath="${BUILD_DIR}/$p"
+            echo "processing ${archPath}"
+            if [ -d "${archPath}" ]; then
+              echo "path found, merge libs from ${archPath}/lib/*.a"
+              eval "libtool -static -o ${archPath}/libOCCT.a ${archPath}/lib/*.a"
+              echo "add ${archPath}/libOCCT.a to ${LIB_PATH}"
+              xcodebuild -create-xcframework -library "${archPath}/libOCCT.a" -headers "${archPath}/inc" -output "${LIB_PATH}"
+            else
+              echo "path not found"
+            fi
+          done
+        env:
+          BUILD_DIR: ${{ env.BUILD_DIR}}
+          ARTIFACT_NAME: ${{ env.REF }}
+          debugName: ${{ env.DEBUG_BUILD && 'ios-debug-' || 'ios-' }}
+        
+      - name: Save artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.LIB_NAME }}
+          path: ${{ env.LIB_PATH }}
+
+build-macos:
+    name: Build
+    runs-on: macos-latest
+    # runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout OCCT sources
+        with:
+          repository: 'Open-Cascade-SAS/OCCT'
+          ref: ${{ env.REF }}
+          fetch-depth: 1
+      
+      - name: Create build Templates
+        working-directory: adm/scripts
+        run: |
+          BUILD_DIR=dist
+          echo "BUILD_DIR=${BUILD_DIR}" >> "$GITHUB_ENV"
+
+          echo 'export PATH=/Applications/CMake.app/Contents/bin:$PATH' | tee -a macos_custom.sh ios_custom.sh > /dev/null
+
+          echo "export aBuildRoot=${BUILD_DIR}" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export isStatic=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toCMake=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toClean=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toMake=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toInstall=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toPack=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toPackFat=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toDebug=${DEBUG_BUILD}" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+
+          # add build variable from repository var
+          echo "${BUILD_TEMPLATE}" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          
+          echo "export USE_FREETYPE=OFF" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export USE_FREEIMAGE=OFF" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export USE_RAPIDJSON=OFF" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export USE_DRACO=OFF" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          
+          # customization for macos
+          echo "export MACOSX_DEPLOYMENT_TARGET=12.00" >> macos_custom.sh
+          echo 'export anAbiList="arm64 x86_64"' >> macos_custom.sh
+
+          # customization for ios
+          echo "export IPHONEOS_DEPLOYMENT_TARGET=12.0" >> ios_custom.sh
+          echo 'export anAbiList="iPhoneOS|arm64 iPhoneSimulator|arm64"' >> ios_custom.sh
+
+          # clean file from \r
+          sed -i -e 's/\r$//' macos_custom.sh
+          sed -i -e 's/\r$//' ios_custom.sh
+
+          # print content 
+          cat macos_custom.sh
+          cat ios_custom.sh
+        env:
+          BUILD_TEMPLATE: ${{ vars.BUILD_TEMPLATE }}
+          DEBUG_BUILD: ${{ env.DEBUG_BUILD }}
+
+      - name: Make macos
+        working-directory: adm/scripts
+        run: |
+          bash macos_build.sh
+
+      - name: Build XCFramework
+        run: |
+          LIB_NAME="${debugName}occt-${ARTIFACT_NAME}.xcframework"
+          LIB_PATH="${BUILD_DIR}/${LIB_NAME}"
+
+          echo "LIB_PATH=${LIB_PATH}" >> "$GITHUB_ENV"
+          echo "LIB_NAME=${LIB_NAME}" >> "$GITHUB_ENV"
+          
+          # build xcframework
+          search_path=("macos-x86_64-clang" "macos-x86_64-debug-clang" "macos-arm64-clang" "macos-arm64-debug-clang" "iPhoneOS-arm64-clang" "iPhoneOS-arm64-debug-clang" "iPhoneSimulator-arm64-clang" "iPhoneSimulator-arm64-debug-clang")
+          for p in "${search_path[@]}"
+          do
+            archPath="${BUILD_DIR}/$p"
+            echo "processing ${archPath}"
+            if [ -d "${archPath}" ]; then
+              echo "path found, merge libs from ${archPath}/lib/*.a"
+              eval "libtool -static -o ${archPath}/libOCCT.a ${archPath}/lib/*.a"
+              echo "add ${archPath}/libOCCT.a to ${LIB_PATH}"
+              xcodebuild -create-xcframework -library "${archPath}/libOCCT.a" -headers "${archPath}/inc" -output "${LIB_PATH}"
+            else
+              echo "path not found"
+            fi
+          done
+        env:
+          BUILD_DIR: ${{ env.BUILD_DIR}}
+          ARTIFACT_NAME: ${{ env.REF }}
+          debugName: ${{ env.DEBUG_BUILD && 'macos-debug-' || 'macos-' }}
+        
+      - name: Save artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.LIB_NAME }}
+          path: ${{ env.LIB_PATH }}
