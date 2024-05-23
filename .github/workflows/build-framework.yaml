@@ -1,8 +1,8 @@
 
-name: Build XCFramework
+name: Build XCFramework action
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       occt-tag:
         type: string
@@ -10,16 +10,24 @@ on:
       debug-build:
         type: boolean
         default: false
+      build-macos:
+        type: boolean
+        default: true
+      build-ios:
+        type: boolean
+        default: true
 
 env:
     REF: ${{ inputs.occt-tag || ''}}
-    DEBUG_BUILD: ${{ inputs.debug-build && '1' || '0' }}
+    BUILD_IN_DEBUG: ${{ inputs.debug-build }}
+    BUILD_IOS: ${{ inputs.build-ios }}
+    BUILD_MACOS: ${{ inputs.build-macos }}
 
 jobs:
-  build:
-    name: Build
+  build-ios:
+    name: Build ios
+    if: ${{ inputs.build-ios }}
     runs-on: macos-latest
-    # runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -45,8 +53,12 @@ jobs:
           echo "export toInstall=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
           echo "export toPack=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
           echo "export toPackFat=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
-          echo "export toDebug=${DEBUG_BUILD}" | tee -a macos_custom.sh ios_custom.sh > /dev/null
-
+          if [ "$BUILD_IN_DEBUG" = true ] ; then
+            echo "export toDebug=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          else
+            echo "export toDebug=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          fi
+          
           # add build variable from repository var
           echo "${BUILD_TEMPLATE}" | tee -a macos_custom.sh ios_custom.sh > /dev/null
           
@@ -57,7 +69,7 @@ jobs:
           
           # customization for macos
           echo "export MACOSX_DEPLOYMENT_TARGET=12.00" >> macos_custom.sh
-          echo 'export anAbiList="arm64 x86_64"' >> macos_custom.sh
+          echo 'export anAbiList="arm64"' >> macos_custom.sh
 
           # customization for ios
           echo "export IPHONEOS_DEPLOYMENT_TARGET=12.0" >> ios_custom.sh
@@ -72,12 +84,7 @@ jobs:
           cat ios_custom.sh
         env:
           BUILD_TEMPLATE: ${{ vars.BUILD_TEMPLATE }}
-          DEBUG_BUILD: ${{ env.DEBUG_BUILD }}
-
-      - name: Make macos
-        working-directory: adm/scripts
-        run: |
-          bash macos_build.sh
+          BUILD_IN_DEBUG: ${{ env.BUILD_IN_DEBUG }}
 
       - name: Make ios
         working-directory: adm/scripts
@@ -86,13 +93,24 @@ jobs:
 
       - name: Build XCFramework
         run: |
-          LIB_NAME="${debugName}occt-${ARTIFACT_NAME}.xcframework"
+          LIB_NAME=""
+          if [ "$BUILD_IN_DEBUG" = true ] ; then
+            LIB_NAME="${LIB_NAME}debug-"
+          fi
+          if [ "$BUILD_IOS" = true ] ; then
+            LIB_NAME="${LIB_NAME}ios-"
+          fi
+          if [ "$BUILD_MACOS" = true ] ; then
+            LIB_NAME="${LIB_NAME}macos-"
+          fi
+          LIB_NAME="${LIB_NAME}occt-${ARTIFACT_NAME}.xcframework"
           LIB_PATH="${BUILD_DIR}/${LIB_NAME}"
 
           echo "LIB_PATH=${LIB_PATH}" >> "$GITHUB_ENV"
           echo "LIB_NAME=${LIB_NAME}" >> "$GITHUB_ENV"
           
           # build xcframework
+          buildCmd="xcodebuild -create-xcframework -output ${LIB_PATH}"
           search_path=("macos-x86_64-clang" "macos-x86_64-debug-clang" "macos-arm64-clang" "macos-arm64-debug-clang" "iPhoneOS-arm64-clang" "iPhoneOS-arm64-debug-clang" "iPhoneSimulator-arm64-clang" "iPhoneSimulator-arm64-debug-clang")
           for p in "${search_path[@]}"
           do
@@ -102,15 +120,19 @@ jobs:
               echo "path found, merge libs from ${archPath}/lib/*.a"
               eval "libtool -static -o ${archPath}/libOCCT.a ${archPath}/lib/*.a"
               echo "add ${archPath}/libOCCT.a to ${LIB_PATH}"
-              xcodebuild -create-xcframework -library "${archPath}/libOCCT.a" -headers "${archPath}/inc" -output "${LIB_PATH}"
+              buildCmd="${buildCmd} -library ${archPath}/libOCCT.a -headers ${archPath}/inc"
             else
               echo "path not found"
             fi
           done
+          echo "${buildCmd}"
+          eval "${buildCmd}"
         env:
           BUILD_DIR: ${{ env.BUILD_DIR}}
           ARTIFACT_NAME: ${{ env.REF }}
-          debugName: ${{ env.DEBUG_BUILD && 'debug-' || '' }}
+          BUILD_IN_DEBUG: ${{ env.BUILD_IN_DEBUG }}
+          BUILD_IOS: ${{ env.BUILD_IOS }}
+          BUILD_MACOS: ${{ env.BUILD_MACOS }}
         
       - name: Save artifacts
         uses: actions/upload-artifact@v4
