@@ -10,14 +10,24 @@ on:
       debug-build:
         type: boolean
         default: false
+      build-macos:
+        type: boolean
+        default: true
+      build-ios:
+        type: boolean
+        default: true
 
 env:
     REF: ${{ inputs.occt-tag || ''}}
     DEBUG_BUILD: ${{ inputs.debug-build && '1' || '0' }}
+    BUILD_IOS: ${{ inputs.build-ios }}
+    BUILD_MACOS: ${{ inputs.build-macos }}
+    
 
 jobs:
   build-ios:
     name: Build ios
+    if: ${{ env.BUILD_IOS }}
     runs-on: macos-latest
     # runs-on: ubuntu-latest
 
@@ -57,7 +67,7 @@ jobs:
           
           # customization for macos
           echo "export MACOSX_DEPLOYMENT_TARGET=12.00" >> macos_custom.sh
-          echo 'export anAbiList="arm64 x86_64"' >> macos_custom.sh
+          echo 'export anAbiList="arm64"' >> macos_custom.sh
 
           # customization for ios
           echo "export IPHONEOS_DEPLOYMENT_TARGET=12.0" >> ios_custom.sh
@@ -117,6 +127,7 @@ jobs:
 
   build-macos:
     name: Build macos
+    if: ${{ env.BUILD_MACOS }}
     runs-on: macos-latest
     # runs-on: ubuntu-latest
 
@@ -156,7 +167,7 @@ jobs:
           
           # customization for macos
           echo "export MACOSX_DEPLOYMENT_TARGET=12.00" >> macos_custom.sh
-          echo 'export anAbiList="arm64 x86_64"' >> macos_custom.sh
+          echo 'export anAbiList="arm64"' >> macos_custom.sh
 
           # customization for ios
           echo "export IPHONEOS_DEPLOYMENT_TARGET=12.0" >> ios_custom.sh
