@@ -185,6 +185,7 @@ jobs:
           echo "LIB_NAME=${LIB_NAME}" >> "$GITHUB_ENV"
           
           # build xcframework
+          buildCmd="xcodebuild -create-xcframework"
           search_path=("macos-x86_64-clang" "macos-x86_64-debug-clang" "macos-arm64-clang" "macos-arm64-debug-clang" "iPhoneOS-arm64-clang" "iPhoneOS-arm64-debug-clang" "iPhoneSimulator-arm64-clang" "iPhoneSimulator-arm64-debug-clang")
           for p in "${search_path[@]}"
           do
@@ -194,11 +195,12 @@ jobs:
               echo "path found, merge libs from ${archPath}/lib/*.a"
               eval "libtool -static -o ${archPath}/libOCCT.a ${archPath}/lib/*.a"
               echo "add ${archPath}/libOCCT.a to ${LIB_PATH}"
-              xcodebuild -create-xcframework -library "${archPath}/libOCCT.a" -headers "${archPath}/inc" -output "${LIB_PATH}"
+              buildCmd="${buildCmd} -library ${archPath}/libOCCT.a -headers ${archPath}/inc -output ${LIB_PATH}"
             else
               echo "path not found"
             fi
           done
+          eval "${buildCmd}"
         env:
           BUILD_DIR: ${{ env.BUILD_DIR}}
           ARTIFACT_NAME: ${{ env.REF }}
