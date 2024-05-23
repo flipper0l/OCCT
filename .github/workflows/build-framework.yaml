@@ -24,8 +24,8 @@ env:
     BUILD_MACOS: ${{ inputs.build-macos }}
 
 jobs:
-  build-ios:
-    name: Build ios
+  build:
+    name: Build
     if: ${{ inputs.build-ios }}
     runs-on: macos-latest
 
