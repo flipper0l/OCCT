@@ -10,16 +10,18 @@ on:
       debug-build:
         type: boolean
         default: false
-      build-macos:
+      build_macos:
         type: boolean
+        required: true
         default: true
-      build-ios:
+      build_ios:
         type: boolean
+        required: true
         default: true
-
+        
 jobs:
   build-ios:
-    if: ${{ inputs.build-ios }}
+    if: ${{ inputs.build_ios }}
     uses: flipper0l/OCCT-SPM/.github/workflows/build-framework.yaml@main
     with:
       occt-tag: ${{ inputs.occt-tag }}
@@ -28,7 +30,7 @@ jobs:
       build-macos: false
 
   build-macos:
-    if: ${{ inputs.build-macos }}
+    if: ${{ inputs.build_macos }}
     uses: flipper0l/OCCT-SPM/.github/workflows/build-framework.yaml@main
     with:
       occt-tag: ${{ inputs.occt-tag }}
