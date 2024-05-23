@@ -86,24 +86,28 @@ jobs:
           BUILD_IN_DEBUG: ${{ env.BUILD_IN_DEBUG }}
 
       - name: Make ios
+        if: ${{ inputs.build-ios }}
         working-directory: adm/scripts
         run: |
           bash ios_build.sh
 
+      - name: Make macos
+        if: ${{ inputs.build-macos }}
+        working-directory: adm/scripts
+        run: |
+          bash macos_build.sh
+
       - name: Build XCFramework
         run: |
-          search_path=()
           LIB_NAME=""
           if [ "$BUILD_IN_DEBUG" = true ] ; then
             LIB_NAME="${LIB_NAME}debug-"
           fi
           if [ "$BUILD_IOS" = true ] ; then
             LIB_NAME="${LIB_NAME}ios-"
-            search_path=("iPhoneOS-arm64-clang" "iPhoneOS-arm64-debug-clang" "iPhoneSimulator-arm64-clang" "iPhoneSimulator-arm64-debug-clang")
           fi
           if [ "$BUILD_MACOS" = true ] ; then
             LIB_NAME="${LIB_NAME}macos-"
-            search_path=("macos-x86_64-clang" "macos-x86_64-debug-clang" "macos-arm64-clang" "macos-arm64-debug-clang")
           fi
           LIB_NAME="${LIB_NAME}occt-${ARTIFACT_NAME}.xcframework"
           LIB_PATH="${BUILD_DIR}/${LIB_NAME}"
@@ -112,6 +116,7 @@ jobs:
           echo "LIB_NAME=${LIB_NAME}" >> "$GITHUB_ENV"
           
           # build xcframework
+          search_path=("macos-x86_64-clang" "macos-x86_64-debug-clang" "macos-arm64-clang" "macos-arm64-debug-clang" "iPhoneOS-arm64-clang" "iPhoneOS-arm64-debug-clang" "iPhoneSimulator-arm64-clang" "iPhoneSimulator-arm64-debug-clang")
           buildCmd="xcodebuild -create-xcframework -output ${LIB_PATH}"
           for p in "${search_path[@]}"
           do
