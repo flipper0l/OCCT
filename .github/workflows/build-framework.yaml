@@ -51,7 +51,8 @@ jobs:
           echo "export toMake=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
           echo "export toInstall=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
           echo "export toPack=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
-          echo "export toPackFat=0" | tee -a macos_custom.sh ios_custom.sh > /dev/null
+          echo "export toPackFat=1" >> macos_custom.sh
+          echo "export toPackFat=0" >> ios_custom.sh
           if [ "$BUILD_IN_DEBUG" = true ] ; then
             echo "export toDebug=1" | tee -a macos_custom.sh ios_custom.sh > /dev/null
           else
@@ -116,7 +117,7 @@ jobs:
           echo "LIB_NAME=${LIB_NAME}" >> "$GITHUB_ENV"
           
           # build xcframework
-          search_path=("macos-x86_64-clang" "macos-x86_64-debug-clang" "macos-arm64-clang" "macos-arm64-debug-clang" "iPhoneOS-arm64-clang" "iPhoneOS-arm64-debug-clang" "iPhoneSimulator-arm64-clang" "iPhoneSimulator-arm64-debug-clang")
+          search_path=("macos-clang" "macos-debug-clang" "iPhoneOS-arm64-clang" "iPhoneOS-arm64-debug-clang" "iPhoneSimulator-arm64-clang" "iPhoneSimulator-arm64-debug-clang")
           buildCmd="xcodebuild -create-xcframework -output ${LIB_PATH}"
           for p in "${search_path[@]}"
           do
